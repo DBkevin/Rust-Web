@@ -61,14 +61,6 @@ impl<'a> HttpResponse<'a> {
         Ok(())
     }
    
-    /** send_response()  构建响应，将原始字节通过TCP 推送
-     */
-    // pub fn send_response(&self, write_stream: &mut impl Write) -> Result<()> {
-    //     let res = self.clone();
-    //     let response_string = String::from(res);
-    //     let _ = write!(write_stream, "{}", response_string)?;
-    //     Ok(())
-    // }
     fn version(&self) -> &str {
         self.version
     }
@@ -106,7 +98,7 @@ impl<'a> From<HttpResponse<'a>> for String {
             &res1.status_text(),
             &res1.headers(),
             &res.body.unwrap().len(),
-            &res1.body(),
+            &res1.body()
         )
     }
 }
