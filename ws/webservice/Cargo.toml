@@ -2,8 +2,16 @@
 name = "webservice"
 version = "0.1.0"
 edition = "2021"
+default-run="teacher-service"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web="4.1.0"
+actix-web="4.1.0" 
+actix-rt="2.7.0"
+serde={version="1.0.139",features=["derive"]}
+chrono={version="0.4.19",features=["serde"]}
+[[bin]]
+name="server1"
+[[bin]]
+name="teacher-service"
