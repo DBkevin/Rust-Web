@@ -1,3 +1,4 @@
+use super::db_access::*;
 use super::state::AppState;
 use actix_web::{web, HttpResponse};
 pub async fn health_check_handler(app_state: web::Data<AppState>) -> HttpResponse {
@@ -9,118 +10,86 @@ pub async fn health_check_handler(app_state: web::Data<AppState>) -> HttpRespons
 }
 
 use super::models::Course;
-use chrono::Utc;
 
 pub async fn new_course(
     new_course: web::Json<Course>,
     app_state: web::Data<AppState>,
 ) -> HttpResponse {
-    println!("Recevied new course");
-    let course_coutn = app_state
-        .courses
-        .lock()
-        .unwrap()
-        .clone()
-        .into_iter()
-        .filter(|course| course.teacher_id == new_course.teacher_id)
-        .collect::<Vec<Course>>()
-        .len();
-    let new_course = Course {
-        teacher_id: new_course.teacher_id,
-        id: Some(course_coutn + 1),
-        name: new_course.name.clone(),
-        time: Some(Utc::now().naive_utc()),
-    };
-    app_state.courses.lock().unwrap().push(new_course);
-    HttpResponse::Ok().json("course added")
+    let course = post_new_course_db(&app_state.db, new_course.into()).await;
+    HttpResponse::Ok().json(course)
 }
 
 pub async fn get_courses_for_teacher(
     app_state: web::Data<AppState>,
-    params: web::Path<usize>,
+    params: web::Path<(usize,)>,
 ) -> HttpResponse {
-    println!("Recevied new course");
-    let teacher_id: usize = *params;
-    let filter_courses = app_state
-        .courses
-        .lock()
-        .unwrap()
-        .clone()
-        .into_iter()
-        .filter(|course| course.teacher_id == teacher_id)
-        .collect::<Vec<Course>>();
-
-    if filter_courses.len() > 0 {
-        HttpResponse::Ok().json(filter_courses)
-    } else {
-        HttpResponse::Ok().json("No course found for teacher".to_string())
-    }
+    let teacher_id = i32::try_from(params.0).unwrap();
+    let courses = get_courses_for_teacher_db(&app_state.db, teacher_id).await;
+    HttpResponse::Ok().json(courses)
 }
 pub async fn get_couse_detail(
-    app_state:web::Data<AppState>,
-    params: web::Path<(usize,usize)>
-)->HttpResponse{
-    println!("recevied show couser");
-    let (teacher_id,course_id)=params.into_inner();
-    let selected_course=app_state
-        .courses
-        .lock()
-        .unwrap()
-        .clone()
-        .into_iter()
-        .find(|x|x.teacher_id==teacher_id
-        &&x.id==Some(course_id)
-        )
-        .ok_or("Couse not found");
-        if let Ok(course)=selected_course{
-            HttpResponse::Ok().json(course)
-        }else{
-            HttpResponse::Ok().json("Course not found".to_string())
-        }
+    app_state: web::Data<AppState>,
+    params: web::Path<(usize, usize)>,
+) -> HttpResponse {
+    let teacher_id = i32::try_from(params.0).unwrap();
+    let course_id = i32::try_from(params.1).unwrap();
+    let course = get_couse_details_db(&app_state.db, teacher_id, course_id).await;
+    HttpResponse::Ok().json(course)
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use actix_web::{http::StatusCode};
+    use dotenv::dotenv;
+    use sqlx::mysql::MySqlPoolOptions;
+    use std::env;
     use std::sync::Mutex;
     #[actix_rt::test]
     async fn post_course_test() {
-        let course = web::Json(Course {
-            teacher_id: 1,
-            name: "test course".into(),
-            id: None,
-            time: None,
-        });
+        dotenv().ok();
+        let db_url = env::var("DATABASE_URL").expect("DATABASES__URL IS NOT SET");
+        let db_pool = MySqlPoolOptions::new().connect(&db_url).await.unwrap();
         let app_state: web::Data<AppState> = web::Data::new(AppState {
             health_check_response: "".to_string(),
             visit_count: Mutex::new(0),
-            courses: Mutex::new(vec![]),
+            db: db_pool,
+        });
+        let course = web::Json(Course {
+            teacher_id: 1,
+            name: "Test course".into(),
+            id: None,
+            time: None,
         });
         let resp = new_course(course, app_state).await;
         assert_eq!(resp.status(), StatusCode::OK);
     }
     #[actix_rt::test]
     async fn get_all_courses_success() {
+        dotenv().ok();
+        let db_url = env::var("DATABASE_URL").expect("DATABASES__URL IS NOT SET");
+        let db_pool = MySqlPoolOptions::new().connect(&db_url).await.unwrap();
         let app_state: web::Data<AppState> = web::Data::new(AppState {
             health_check_response: "".to_string(),
             visit_count: Mutex::new(0),
-            courses: Mutex::new(vec![]),
+            db: db_pool,
         });
-        let teacher_id: web::Path<usize> = web::Path::from(1);
+        let teacher_id: web::Path<(usize,)> = web::Path::from((1,));
         let resp = get_courses_for_teacher(app_state, teacher_id).await;
         assert_eq!(resp.status(), StatusCode::OK);
     }
     #[actix_rt::test]
-    async fn get_one_course_success(){
-        let app_state:web::Data<AppState>=web::Data::new(AppState {
-             health_check_response: "".to_string(),
-             visit_count: Mutex::new(0), 
-             courses: Mutex::new(vec![]),
-            });
-            let params:web::Path<(usize,usize)>=web::Path::from((1,1));
-            let resp=get_couse_detail(app_state, params).await;
-            assert_eq!(resp.status(),StatusCode::OK);
+    async fn get_one_course_success() {
+        dotenv().ok();
+        let db_url = env::var("DATABASE_URL").expect("DATABASES__URL IS NOT SET");
+        let db_pool = MySqlPoolOptions::new().connect(&db_url).await.unwrap();
+        let app_state: web::Data<AppState> = web::Data::new(AppState {
+            health_check_response: "".to_string(),
+            visit_count: Mutex::new(0),
+            db: db_pool,
+        });
+        let params: web::Path<(usize, usize)> = web::Path::from((1, 1));
+        let resp = get_couse_detail(app_state, params).await;
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

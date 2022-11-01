@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use  chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
 use chrono::Utc;
 use dotenv::dotenv;
 use sqlx::mysql::MySql;

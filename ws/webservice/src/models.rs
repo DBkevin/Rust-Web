@@ -1,12 +1,12 @@
 use actix_web::web;
-use chrono::NaiveDateTime;
+use chrono::{ DateTime, Utc};
 use serde::{Deserialize,Serialize};
 #[derive(Deserialize,Serialize,Debug,Clone)]
 pub struct Course{
-	pub teacher_id:usize,
-	pub id:Option<usize>,
+	pub teacher_id:u32,
+	pub id:Option<u32>,
 	pub name:String,
-	pub time:Option<NaiveDateTime>,
+	pub time:Option<DateTime<Utc>>,
 }
 impl From<web::Json<Course>>for Course{
 	fn from(course:web::Json<Course>)->Self{

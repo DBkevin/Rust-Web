@@ -9,8 +9,10 @@ default-run="teacher-service"
 [dependencies]
 actix-web="4.1.0" 
 actix-rt="2.7.0"
+dotenv="0.15.0"
 serde={version="1.0.139",features=["derive"]}
 chrono={version="0.4.19",features=["serde"]}
+sqlx={version="0.6.0",features=["mysql","runtime-tokio-rustls","macros","chrono"]}
 [[bin]]
 name="server1"
 [[bin]]
