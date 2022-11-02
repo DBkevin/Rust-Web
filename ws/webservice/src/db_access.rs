@@ -1,24 +1,37 @@
+use super::errors::MyError;
 use super::models::*;
-use sqlx::{mysql::MySqlPool};
+use sqlx::mysql::MySqlPool;
 
-pub async fn get_courses_for_teacher_db(pool: &MySqlPool, teacher_id: i32) -> Vec<Course> {
+pub async fn get_courses_for_teacher_db(
+    pool: &MySqlPool,
+    teacher_id: i32,
+) -> Result<Vec<Course>, MyError> {
     let rows = sqlx::query!(
         r#"SELECT id, teacher_id,name,time FROM course where teacher_id=?"#,
         teacher_id
     )
     .fetch_all(pool)
-    .await
-    .unwrap();
-    rows.iter()
+    .await?;
+    let courses: Vec<Course> = rows
+        .iter()
         .map(|r| Course {
             id: Some(r.id),
             teacher_id: r.teacher_id,
             name: r.name.clone(),
-            time: Some(r.time)
+            time: Some(r.time),
         })
-        .collect()
+        .collect();
+    match courses.len() {
+        0 => Err(MyError::NotFound("Courses not  found for teacher".into())),
+        _ => Ok(courses),
+    }
 }
-pub async fn get_couse_details_db(pool: &MySqlPool, teacher_id: i32, course_id: i32) -> Course {
+
+pub async fn get_couse_details_db(
+    pool: &MySqlPool,
+    teacher_id: i32,
+    course_id: i32,
+) -> Result<Course, MyError> {
     let row = sqlx::query!(
         r#"SELECT id,teacher_id,name,time 
 			FROM course
@@ -28,18 +41,21 @@ pub async fn get_couse_details_db(pool: &MySqlPool, teacher_id: i32, course_id: 
         course_id
     )
     .fetch_one(pool)
-    .await
-    .unwrap();
-    Course {
-        id: Some(row.id),
-        teacher_id: row.teacher_id,
-        name: row.name.clone(),
-        time: Some(row.time),
+    .await;
+    if let Ok(row) = row {
+        Ok(Course {
+            id: Some(row.id),
+            teacher_id: row.teacher_id,
+            name: row.name.clone(),
+            time: Some(row.time),
+        })
+    } else {
+        Err(MyError::NotFound("Course ID not found".into()))
     }
 }
 
-pub async fn post_new_course_db(pool: &MySqlPool, new_course: Course) -> Course{
-    let row = sqlx::query!(
+pub async fn post_new_course_db(pool: &MySqlPool, new_course: Course) -> Result<Course, MyError> {
+    let _row = sqlx::query!(
         r#"INSERT INTO course (id,teacher_id,name)
 		VALUES(?,?,?)
 		"#,
@@ -48,6 +64,7 @@ pub async fn post_new_course_db(pool: &MySqlPool, new_course: Course) -> Course{
         new_course.name
     )
     .fetch_one(pool)
-    .await;
-    new_course
+    .await?;
+
+    Ok(new_course)
 }
