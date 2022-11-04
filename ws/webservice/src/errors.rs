@@ -7,6 +7,7 @@ pub enum MyError {
     DBError(String),
     ActixError(String),
     NotFound(String),
+    InvalidInput(String),
 }
 #[derive(Debug, Serialize)]
 pub struct MyErrorResponse {
@@ -27,6 +28,10 @@ impl MyError {
                 println!("Not Found error occurred:{:?}", msg);
                 msg.into()
             }
+            MyError::InvalidInput(msg)=>{
+                println!("Invalid parametets received:{:?}", msg);
+                msg.into()
+            }
         }
     }
 }
@@ -35,6 +40,7 @@ impl error::ResponseError for MyError {
         match self {
             MyError::DBError(_msg) | MyError::ActixError(_msg) => StatusCode::INTERNAL_SERVER_ERROR,
             MyError::NotFound(_msg) => StatusCode::NOT_FOUND,
+            MyError::InvalidInput(_msg)=>StatusCode::BAD_REQUEST,
         }
     }
     fn error_response(&self) -> HttpResponse {
